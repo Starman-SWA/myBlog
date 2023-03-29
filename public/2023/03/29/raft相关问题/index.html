@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"starman-swa.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Raft的一致性复制过程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="raft相关问题">
+<meta property="og:url" content="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/index.html">
+<meta property="og:site_name" content="Starman&#39;s Blog">
+<meta property="og:description" content="Raft的一致性复制过程">
+<meta property="og:locale">
+<meta property="og:image" content="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/image-20230328174100075.png">
+<meta property="og:image" content="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/image-20230328174442878.png">
+<meta property="og:image" content="https://baixiangcpp.oss-cn-shanghai.aliyuncs.com/blog/raft-paper/raft-8.png">
+<meta property="article:published_time" content="2023-03-29T11:13:47.000Z">
+<meta property="article:modified_time" content="2023-03-29T11:17:04.136Z">
+<meta property="article:tag" content="分布式系统">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/image-20230328174100075.png">
+
+<link rel="canonical" href="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>raft相关问题 | Starman's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="Starman's Blog" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Starman's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">去码头整点薯条</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="https://starman-swa.github.io/2023/03/29/raft%E7%9B%B8%E5%85%B3%E9%97%AE%E9%A2%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/52107981.png">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Starman's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          raft相关问题
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-03-29 19:13:47 / 修改时间：19:17:04" itemprop="dateCreated datePublished" datetime="2023-03-29T19:13:47+08:00">2023-03-29</time>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="Raft的一致性复制过程"><a href="#Raft的一致性复制过程" class="headerlink" title="Raft的一致性复制过程"></a>Raft的一致性复制过程</h1><a id="more"></a>
+
+<ol>
+<li>客户端向leader发送请求</li>
+<li>leader向自己的日志增加一条新entry，然后向所有的follower并行发送AppendEntries RPC来复制这条新entry。AppendEntries RPC可以一次性发送多条entry。</li>
+<li>follower通过AppendEntries RPC中的prevLogIndex和prevLogTerm查找本地是否拥有这条entry的前一条entry，如果有，则删除其后所有冲突的entry，然后添加新entry，向leader发送success响应</li>
+<li>当leader接收到来自过半数follower的success响应时，则将这条entry标记为commited，并在随后发送的AppendEntries RPC中将最新的leaderCommit发送给所有follower</li>
+<li>follower将自己的commitIndex更新为leaderCommit和本地最新index的最小值</li>
+<li>所有服务器（包括leader、candidate和follower）定期将本地commitIndex对应的entry应用（apply）到本地状态机上</li>
+<li>leader将entry应用到本地状态机后，响应客户端</li>
+</ol>
+<h1 id="当一个leader崩溃时，candidate当选leader的条件"><a href="#当一个leader崩溃时，candidate当选leader的条件" class="headerlink" title="当一个leader崩溃时，candidate当选leader的条件"></a>当一个leader崩溃时，candidate当选leader的条件</h1><ul>
+<li>candidate的日志至少要比过半数的followr更up-to-date，才可以获得过半数投票当选leader：</li>
+<li><img src="image-20230328174100075.png" alt="image-20230328174100075"></li>
+<li>原因如下：当candidate满足这个条件是，它会包含所有已提交的entry：</li>
+<li><img src="image-20230328174442878.png" alt="image-20230328174442878"></li>
+<li>up-to-date的比较规则：先比较term，term相同再比较index</li>
+</ul>
+<h1 id="在一致性复制的不同阶段leader崩溃时，Raft分别如何处理？"><a href="#在一致性复制的不同阶段leader崩溃时，Raft分别如何处理？" class="headerlink" title="在一致性复制的不同阶段leader崩溃时，Raft分别如何处理？"></a>在一致性复制的不同阶段leader崩溃时，Raft分别如何处理？</h1><h2 id="数据到达leader，但未复制到大多数follower"><a href="#数据到达leader，但未复制到大多数follower" class="headerlink" title="数据到达leader，但未复制到大多数follower"></a>数据到达leader，但未复制到大多数follower</h2><ul>
+<li>这条entry还没有被提交，剩余的节点会选出一个包含所有已提交日志的leader</li>
+<li>当leader包含这条未提交的entry时，会对其进行间接提交<ul>
+<li>如果客户端还在原有的崩溃节点等待，当崩溃节点恢复时，会接收到新leader提交的这条entry，并应用到状态机，从而响应客户端</li>
+<li>如果客户端向新的leader再次发送了这条请求，由于请求中含有客户端指定的唯一ID，尽管Raft提交了两条重复的请求，但只会向状态机应用一次</li>
+<li>由于这条指令被间接提交后会被应用到每个可用节点的server层，因此<strong>客户端必须重试</strong>。如果客户端不重试，则会有一条错误的指令被执行。也就是说，<strong>一旦用户在客户端发送了一条请求，则这条请求不能够被撤回</strong>。</li>
+<li><strong>简而言之，此时的一致性由客户端指定的唯一操作ID保证</strong></li>
+</ul>
+</li>
+</ul>
+<h2 id="数据到达leader，成功复制到大多数follower，但leader未接收到过半数的响应"><a href="#数据到达leader，成功复制到大多数follower，但leader未接收到过半数的响应" class="headerlink" title="数据到达leader，成功复制到大多数follower，但leader未接收到过半数的响应"></a>数据到达leader，成功复制到大多数follower，但leader未接收到过半数的响应</h2><ul>
+<li>同上</li>
+</ul>
+<h2 id="数据到达leader，成功接收到了过半数的follower响应，但未更新commitIndex"><a href="#数据到达leader，成功接收到了过半数的follower响应，但未更新commitIndex" class="headerlink" title="数据到达leader，成功接收到了过半数的follower响应，但未更新commitIndex"></a>数据到达leader，成功接收到了过半数的follower响应，但未更新commitIndex</h2><ul>
+<li>只要未apply，就不会响应客户端。由于commitIndex未更新，因此视为没有commit，同上</li>
+</ul>
+<h2 id="数据到达leader，成功复制并且更新了commitIndex，但未在本地apply且未将commitIndex发送给大多数follower"><a href="#数据到达leader，成功复制并且更新了commitIndex，但未在本地apply且未将commitIndex发送给大多数follower" class="headerlink" title="数据到达leader，成功复制并且更新了commitIndex，但未在本地apply且未将commitIndex发送给大多数follower"></a>数据到达leader，成功复制并且更新了commitIndex，但未在本地apply且未将commitIndex发送给大多数follower</h2><ul>
+<li>新leader没有更新commitIndex，视为未commit。本机未apply，未响应客户端。因此不会有问题，同上</li>
+</ul>
+<h2 id="数据到达leader，成功复制并且更新了commitIndex，已在本地apply，但未将commitIndex发送给大多数follower"><a href="#数据到达leader，成功复制并且更新了commitIndex，已在本地apply，但未将commitIndex发送给大多数follower" class="headerlink" title="数据到达leader，成功复制并且更新了commitIndex，已在本地apply，但未将commitIndex发送给大多数follower"></a>数据到达leader，成功复制并且更新了commitIndex，已在本地apply，但未将commitIndex发送给大多数follower</h2><ul>
+<li>新leader没有更新commitIndex，视为未commit，但新leader的日志中包含这条entry，会对其间接提交。</li>
+<li>原本发送请求的客户端接收了正确的响应。间接提交后所有节点的server层也能够正确执行这条指令。</li>
+</ul>
+<h2 id="数据到达leader，成功复制并且更新了commitIndex，未在本地apply，但已将commitIndex发送给大多数follower"><a href="#数据到达leader，成功复制并且更新了commitIndex，未在本地apply，但已将commitIndex发送给大多数follower" class="headerlink" title="数据到达leader，成功复制并且更新了commitIndex，未在本地apply，但已将commitIndex发送给大多数follower"></a>数据到达leader，成功复制并且更新了commitIndex，未在本地apply，但已将commitIndex发送给大多数follower</h2><ul>
+<li>新leader会apply这条指令。当客户端在新leader重试时，通过操作ID可以发现这条指令已经被执行了，直接返回success。如果客户端还在原leader等待，当原leader重启时也会apply这条指令并响应客户端</li>
+</ul>
+<h1 id="网络分区问题"><a href="#网络分区问题" class="headerlink" title="网络分区问题"></a>网络分区问题</h1><ul>
+<li>假设小分区和大分区均存在leader，均可以接收客户端请求。小分区当中的entry，由于无法append到大多数，因此永远不会被commit；大分区当中的所有entry会被commit和apply。相应地，大分区的客户端请求可以被正确执行，而小分区的客户端请求会一直超时重试。</li>
+<li>当小分区与大分区合并时，term更高的那个leader会成为整个集群的leader，其日志被复制到整个集群。</li>
+<li><strong>大分区的leader一定是term更高的</strong>，因为网络分区后，小分区中的票数不足，无法选举产生term更大的leader。所以新leader一定是大分区的leader，不会出现大分区的日志被小分区覆盖，导致已执行的客户端请求丢失的情况。</li>
+<li>当分区合并后，小分区的leader变为follower，那些一直在超时重试的请求会返回失败。</li>
+</ul>
+<h2 id="CAP理论"><a href="#CAP理论" class="headerlink" title="CAP理论"></a>CAP理论</h2><ul>
+<li>在多节点系统当中，CAP三个性质只能同时满足两个<ul>
+<li>Consistence一致性：数据在多个副本之间保持一致的特性</li>
+<li>Availability可用性：服务一直可用（但是不保证获取的数据为最新数据）</li>
+<li>Network Partitioning分区容错性：网络分区故障时仍然能对外提供满足一致性和可用性的服务，除非整个网络都发生了故障</li>
+</ul>
+</li>
+<li>raft的网络分区满足了AP特性：当网络分区时，如果要保证服务可用性，则副本之间有可能存在不一致。反之，如果对于副本的一致性有要求，例如金融系统，在网络分区情况下服务是不可用的，必须等到网络分区恢复。</li>
+</ul>
+<h1 id="Raft与一致性"><a href="#Raft与一致性" class="headerlink" title="Raft与一致性"></a>Raft与一致性</h1><ul>
+<li>有一种说法是，<strong>raft与一致性无关，raft只实现了共识，一致性针对的是服务，取决于上层应用。</strong>然而我认为一致性是服务和raft共同保证的。我的6.824 KV数据库的强一致性由<strong>服务层的唯一操作ID</strong>和<strong>raft层对读操作的共识</strong>共同实现。</li>
+<li>如果只考虑raft，那么raft也必须为强一致性提供保证，即避免脏读。一种方法是我的读操作共识方法，另一种方法见下一小节。</li>
+</ul>
+<h2 id="一致性类型"><a href="#一致性类型" class="headerlink" title="一致性类型"></a>一致性类型</h2><ul>
+<li><p>最终一致性：写入过程中，客户端可能读到旧值，也可能读到新值</p>
+</li>
+<li><p>线性一致性（强一致）：当其中一个客户端读到了新的数据，所有的客户端都立即能够获取新数据</p>
+</li>
+<li><p><strong>我的raft实现对于读请求必须达成共识，因此实现了强一致性</strong>。因为读请求之前的写请求对应的entry都被commit了，杜绝了“在写的过程中读”这回事</p>
+</li>
+</ul>
+<h1 id="如果不想为读操作添加entry，应该怎么避免脏读"><a href="#如果不想为读操作添加entry，应该怎么避免脏读" class="headerlink" title="如果不想为读操作添加entry，应该怎么避免脏读"></a>如果不想为读操作添加entry，应该怎么避免脏读</h1><ul>
+<li><p>我的KV数据库实现为所有的读操作添加entry，等到该entry达成共识时才响应客户端，会带来较高的延迟</p>
+</li>
+<li><p>如果不为读操作添加entry，在不引入其他额外措施的情况下会发生脏读（论文第8节最后一段）：客户端读到了旧leader的值，而这个值已经被新leader修改了，但是由于网络分区等原因，旧leader还没有意识到他已经不是leader了。</p>
+</li>
+<li><p>为了防止脏读，需要引入下列两个措施：</p>
+<ol>
+<li><p>leader必须拥有之前所有被提交的日志，leader完整性可以保证leader最终会拥有所有已提交的日志，但在任期刚开始时可能还没拥有。此时需要发送一个no-op的空entry，<strong>以强制提交leader拥有的之前任期未被提交的日志</strong></p>
+</li>
+<li><p>leader在响应读请求之前必须确保它仍然是leader，可以通过发送心跳，接收大多数节点的响应来检查</p>
+</li>
+</ol>
+</li>
+</ul>
+<h2 id="为什么需要提交no-op"><a href="#为什么需要提交no-op" class="headerlink" title="为什么需要提交no-op"></a>为什么需要提交no-op</h2><ul>
+<li>如果leader在其任期开始时拥有之前任期的未被提交的日志，那么这条日志最终会被提交，然而leader在此时向客户端返回的是这条日志未提交的状态，产生了脏读</li>
+<li>提交no-op可以强制提交这条日志，使leader更新到最新的状态</li>
+<li><strong>在我的6.824 KV数据库实现当中，由于采用了读共识，因此不需要提交no-op</strong></li>
+</ul>
+<h1 id="为什么leader不能直接提交之前任期的entry"><a href="#为什么leader不能直接提交之前任期的entry" class="headerlink" title="为什么leader不能直接提交之前任期的entry"></a>为什么leader不能直接提交之前任期的entry</h1><ul>
+<li>论文中的Figure 8进行了解释：</li>
+<li><img src="https://baixiangcpp.oss-cn-shanghai.aliyuncs.com/blog/raft-paper/raft-8.png" alt="Figure 8"></li>
+<li>简而言之，leader只能在提交本任期日志的过程中，通过日志匹配规则“间接提交”之前任期的日志。如果直接提交之前任期的日志，则这条日志有可能被覆盖。</li>
+<li>图中方框中的数字表示日志的任期，带黑框框的节点为leader。并且需要注意每个leader的任期：(c)中的S1为term=4，(d)中的S5为term=5</li>
+<li>如果允许leader直接提交之前任期的entry，则第一步：(c)中S1向大多数节点复制并提交了term=2的日志，然后崩溃了。第二步：(d)中S5的日志比大多数节点都要up-to-date，被成功选为leader，然后用自己的蓝色日志覆盖了黄色日志。</li>
+<li>如果不允许直接提交，则第一步：(c)提交了term=4的红色日志，并且间接提交了term=2的黄色日志，变为(e)。此时，S5的日志没有比大多数节点up-to-date，<strong>无法被选为leader</strong>。</li>
+</ul>
+<h1 id="其他问题"><a href="#其他问题" class="headerlink" title="其他问题"></a>其他问题</h1><h2 id="为什么follower需要随机超时"><a href="#为什么follower需要随机超时" class="headerlink" title="为什么follower需要随机超时"></a>为什么follower需要随机超时</h2><ul>
+<li>为了防止多个follower同时变为candidate，造成split vote</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/" rel="tag"># 分布式系统</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/21/bzip2%E7%9B%B8%E5%85%B3%E8%AE%BA%E6%96%87%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/" rel="prev" title="bzip2相关论文阅读笔记">
+      <i class="fa fa-chevron-left"></i> bzip2相关论文阅读笔记
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Raft%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7%E5%A4%8D%E5%88%B6%E8%BF%87%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">Raft的一致性复制过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%BD%93%E4%B8%80%E4%B8%AAleader%E5%B4%A9%E6%BA%83%E6%97%B6%EF%BC%8Ccandidate%E5%BD%93%E9%80%89leader%E7%9A%84%E6%9D%A1%E4%BB%B6"><span class="nav-number">2.</span> <span class="nav-text">当一个leader崩溃时，candidate当选leader的条件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%9C%A8%E4%B8%80%E8%87%B4%E6%80%A7%E5%A4%8D%E5%88%B6%E7%9A%84%E4%B8%8D%E5%90%8C%E9%98%B6%E6%AE%B5leader%E5%B4%A9%E6%BA%83%E6%97%B6%EF%BC%8CRaft%E5%88%86%E5%88%AB%E5%A6%82%E4%BD%95%E5%A4%84%E7%90%86%EF%BC%9F"><span class="nav-number">3.</span> <span class="nav-text">在一致性复制的不同阶段leader崩溃时，Raft分别如何处理？</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E4%BD%86%E6%9C%AA%E5%A4%8D%E5%88%B6%E5%88%B0%E5%A4%A7%E5%A4%9A%E6%95%B0follower"><span class="nav-number">3.1.</span> <span class="nav-text">数据到达leader，但未复制到大多数follower</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E6%88%90%E5%8A%9F%E5%A4%8D%E5%88%B6%E5%88%B0%E5%A4%A7%E5%A4%9A%E6%95%B0follower%EF%BC%8C%E4%BD%86leader%E6%9C%AA%E6%8E%A5%E6%94%B6%E5%88%B0%E8%BF%87%E5%8D%8A%E6%95%B0%E7%9A%84%E5%93%8D%E5%BA%94"><span class="nav-number">3.2.</span> <span class="nav-text">数据到达leader，成功复制到大多数follower，但leader未接收到过半数的响应</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E6%88%90%E5%8A%9F%E6%8E%A5%E6%94%B6%E5%88%B0%E4%BA%86%E8%BF%87%E5%8D%8A%E6%95%B0%E7%9A%84follower%E5%93%8D%E5%BA%94%EF%BC%8C%E4%BD%86%E6%9C%AA%E6%9B%B4%E6%96%B0commitIndex"><span class="nav-number">3.3.</span> <span class="nav-text">数据到达leader，成功接收到了过半数的follower响应，但未更新commitIndex</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E6%88%90%E5%8A%9F%E5%A4%8D%E5%88%B6%E5%B9%B6%E4%B8%94%E6%9B%B4%E6%96%B0%E4%BA%86commitIndex%EF%BC%8C%E4%BD%86%E6%9C%AA%E5%9C%A8%E6%9C%AC%E5%9C%B0apply%E4%B8%94%E6%9C%AA%E5%B0%86commitIndex%E5%8F%91%E9%80%81%E7%BB%99%E5%A4%A7%E5%A4%9A%E6%95%B0follower"><span class="nav-number">3.4.</span> <span class="nav-text">数据到达leader，成功复制并且更新了commitIndex，但未在本地apply且未将commitIndex发送给大多数follower</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E6%88%90%E5%8A%9F%E5%A4%8D%E5%88%B6%E5%B9%B6%E4%B8%94%E6%9B%B4%E6%96%B0%E4%BA%86commitIndex%EF%BC%8C%E5%B7%B2%E5%9C%A8%E6%9C%AC%E5%9C%B0apply%EF%BC%8C%E4%BD%86%E6%9C%AA%E5%B0%86commitIndex%E5%8F%91%E9%80%81%E7%BB%99%E5%A4%A7%E5%A4%9A%E6%95%B0follower"><span class="nav-number">3.5.</span> <span class="nav-text">数据到达leader，成功复制并且更新了commitIndex，已在本地apply，但未将commitIndex发送给大多数follower</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BEleader%EF%BC%8C%E6%88%90%E5%8A%9F%E5%A4%8D%E5%88%B6%E5%B9%B6%E4%B8%94%E6%9B%B4%E6%96%B0%E4%BA%86commitIndex%EF%BC%8C%E6%9C%AA%E5%9C%A8%E6%9C%AC%E5%9C%B0apply%EF%BC%8C%E4%BD%86%E5%B7%B2%E5%B0%86commitIndex%E5%8F%91%E9%80%81%E7%BB%99%E5%A4%A7%E5%A4%9A%E6%95%B0follower"><span class="nav-number">3.6.</span> <span class="nav-text">数据到达leader，成功复制并且更新了commitIndex，未在本地apply，但已将commitIndex发送给大多数follower</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%88%86%E5%8C%BA%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">网络分区问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CAP%E7%90%86%E8%AE%BA"><span class="nav-number">4.1.</span> <span class="nav-text">CAP理论</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Raft%E4%B8%8E%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">5.</span> <span class="nav-text">Raft与一致性</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E8%87%B4%E6%80%A7%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.1.</span> <span class="nav-text">一致性类型</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%A6%82%E6%9E%9C%E4%B8%8D%E6%83%B3%E4%B8%BA%E8%AF%BB%E6%93%8D%E4%BD%9C%E6%B7%BB%E5%8A%A0entry%EF%BC%8C%E5%BA%94%E8%AF%A5%E6%80%8E%E4%B9%88%E9%81%BF%E5%85%8D%E8%84%8F%E8%AF%BB"><span class="nav-number">6.</span> <span class="nav-text">如果不想为读操作添加entry，应该怎么避免脏读</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E6%8F%90%E4%BA%A4no-op"><span class="nav-number">6.1.</span> <span class="nav-text">为什么需要提交no-op</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88leader%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E6%8F%90%E4%BA%A4%E4%B9%8B%E5%89%8D%E4%BB%BB%E6%9C%9F%E7%9A%84entry"><span class="nav-number">7.</span> <span class="nav-text">为什么leader不能直接提交之前任期的entry</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E9%97%AE%E9%A2%98"><span class="nav-number">8.</span> <span class="nav-text">其他问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88follower%E9%9C%80%E8%A6%81%E9%9A%8F%E6%9C%BA%E8%B6%85%E6%97%B6"><span class="nav-number">8.1.</span> <span class="nav-text">为什么follower需要随机超时</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/52107981.png">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/starman-swa" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;starman-swa" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:zhengchenprc@outlook.com" title="E-Mail → mailto:zhengchenprc@outlook.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+  <div class="links-of-blogroll motion-element">
+    <div class="links-of-blogroll-title"><i class="fa fa-link fa-fw"></i>
+      Links
+    </div>
+    <ul class="links-of-blogroll-list">
+        <li class="links-of-blogroll-item">
+          <a href="https://jmmmj.github.io/" title="https:&#x2F;&#x2F;jmmmj.github.io&#x2F;" rel="noopener" target="_blank">jmmmj的博客</a>
+        </li>
+        <li class="links-of-blogroll-item">
+          <a href="https://kd-hua.github.io/" title="https:&#x2F;&#x2F;kd-hua.github.io&#x2F;" rel="noopener" target="_blank">Wanna</a>
+        </li>
+    </ul>
+  </div>
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2020 – 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '555731e8059279723bb0',
+      clientSecret: '622f41e7bb4dc13bba728adc1ee8392594c6d54f',
+      repo        : 'blog_gitalk_storage',
+      owner       : 'starman-swa',
+      admin       : ['starman-swa'],
+      id          : '823c654ed63a2d6a02ee75596f1cbd03',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
