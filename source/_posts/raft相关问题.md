@@ -111,6 +111,111 @@ tags:
 - 如果允许leader直接提交之前任期的entry，则第一步：(c)中S1向大多数节点复制并提交了term=2的日志，然后崩溃了。第二步：(d)中S5的日志比大多数节点都要up-to-date，被成功选为leader，然后用自己的蓝色日志覆盖了黄色日志。
 - 如果不允许直接提交，则第一步：(c)提交了term=4的红色日志，并且间接提交了term=2的黄色日志，变为(e)。此时，S5的日志没有比大多数节点up-to-date，**无法被选为leader**。
 
+# Raft试题
+
+- [Raft 作者亲自出的 Raft 面试题！（含答案） - 掘金 (juejin.cn)](https://juejin.cn/post/6902221596765716488)
+
+## 1
+
+### 问题
+
+- 下面的每张图都显示了一台 Raft 服务器上可能存储的日志（日志内容未显示，只显示日志的 index 和任期号）。考虑每份日志都是独立的，下面的日志可能发生在 Raft 中吗？如果不能，请解释原因。
+- a：![img](https://pic3.zhimg.com/80/v2-dc0978de8bdd645cf355a7ab6ec82ce2_720w.webp)
+- b：![img](https://pic2.zhimg.com/80/v2-0b5aa71e876ff9b9a0235c9d3c84a0b1_720w.webp)
+- c：![img](https://pic3.zhimg.com/80/v2-de6ef98b2ad6c0d3ee2b89bfb983fa2a_720w.webp)
+- d：![img](https://pic2.zhimg.com/80/v2-a64e57a90f28c62652807f10483b365d_720w.webp)
+
+### 解答
+
+- a：不可能，一旦服务器接收到term=3的日志，会拒绝所有term<3的请求，不可能再添加term=2的日志
+- b：可能，日志的term号单调递增，一个term可能有多个日志
+- c：可能，一个term并不一定有新的日志
+- d：不可能，服务器在将一个entry附加到日志当中的时候，会保证前一个entry与leader匹配，因此不可能在某一个旧的index上有缺失的entry
+
+## 2
+
+### 问题
+
+- 下图显示了一个 5 台服务器集群中的日志（日志内容未显示）。哪些日志记录可以安全地应用到状态机？请解释你的答案。
+- ![img](https://pic3.zhimg.com/80/v2-1540c1ed479e0f358ebbc42692770876_720w.webp)
+
+### 解答
+
+- ~~index=1、2、3、4、5。因为这些日志被复制到了大多数（3个以上）节点~~
+- 除此之外，我们还要考虑哪些日志会被新的leader截断
+- 首先考虑哪些节点可以成为leader。根据up-to-date的规则，先比较term，再比较index，因此S2、S5都有可能成为leader。因为S2比S3、S4、S5更up-to-date，S5比S3、S4更up-to-date。当S2或S5成为leader时，index>=3的日志有可能被截断。因此，可以被安全应用的日志只有Index=1、2
+
+## 3
+
+### 问题
+
+- 考虑下图，它显示了一个 6 台服务器集群中的日志，此时刚刚选出任期 7 的新 Leader（日志内容未显示，只显示日志的 index 和任期号）。对于图中每一个 Follower，给定的日志是否可能在一个正常运行的 Raft 系统中存在？如果是，请描述该情况如何发生的；如果不是，解释为什么。
+- ![img](https://pic2.zhimg.com/80/v2-47103e12ffe306582d5df0ae2f851721_720w.webp)
+
+### 解答
+
+- (a)：不可能，当前leader有3个term为3的日志，而term为3的leader将日志发送给(a)时会把之前term为2的日志截断
+- (b)：不可能，因为term为5的日志之前的日志与现leader矛盾，原因同(a)
+- (c)：可能，~~这个节点与term为6的leader在同一个分区~~。这个节点可能是term为6的leader，并且在一个单独的分区
+- (d)：不可能，term号不可能递减
+- (e)：可能，~~term为1的leader向该节点多发送了4个entry，但与现leader不在一个网络分区，然后崩溃了~~。这个节点可能是term为1的leader，并且在一个单独的分区
+
+## 4
+
+### 问题
+
+- 假设硬件或软件错误破坏了 Leader 为某个特定 Follower 存储的 `nextIndex` 值。这是否会影响系统的安全？请简要解释你的答案。
+
+### 解答
+
+- 不会影响，因为有prevLogIndex和prevLogTerm来匹配follower和leader中相同的entry。nextIndex的变动不会影响匹配的正确性，只要匹配失败，nextIndex就会继续减小，直至成功。极端情况下，当nextIndex减小到0的时候，leader也能够将整个日志发送给follower
+
+## 5
+
+### 问题
+
+- 假设你实现了 Raft，并将它部署在同一个数据中心的所有服务器上。现在假设你要将系统部署到分布在世界各地的不同数据中心的每台服务器，与单数据中心版本相比，多数据中心的 Raft 需要做哪些更改？为什么？
+
+### 解答
+
+- 选举超时和心跳超时需要延长时间，否则会因为网络传输时间变长导致频繁的领导变更
+
+## 6
+
+### 问题
+
+- 每个 Follower 都在其磁盘上存储了 3 个信息：当前任期（`currentTerm`）、最近的投票（`votedFor`）、以及所有接受的日志记录（`log[]`）。
+
+- a. 假设 Follower 崩溃了，并且当它重启时，它最近的投票信息已丢失。该 Follower 重新加入集群是否安全（假设未对算法做任何修改）？解释一下你的答案。
+
+- b. 现在，假设崩溃期间 Follower 的日志被截断（truncated）了，日志丢失了最后的一些记录。该 Follower 重新加入集群是否安全（假设未对算法做任何修改）？解释一下你的答案。
+
+### 解答
+
+- a：不安全，它有可能会在同一个term之内将票投给另外一个candidate，造成同一个term有两个leader，且这两个leader无法通过互相识别term来退位
+- ~~b：安全，尽管这个follower会丢失一些已经被提交的日志，但是这些日志会被leader重新发送，最终它会重新拥有所有日志。并且由于这个follower的日志不是最up-to-date的，它也不可能通过成为新的leader来覆盖其他节点的日志。因此是安全的~~
+- b：不安全。截断会使得一个已提交的日志没有被存储在多数派上，此时，没有这条日志的节点就能够满足up-to-date条件而被选举为leader，并将其他follower中的这条日志都覆盖掉，导致一个index被提交了不同的值
+
+## 7
+
+### 问题
+
+- 如[视频](https://link.zhihu.com/?target=https%3A//www.youtube.com/watch%3Fv%3DYbZ3zDzDnrw)中所述，即使其它服务器认为 Leader 崩溃并选出了新的 Leader 后，（老的）Leader 依然可能继续运行。新的 Leader 将与集群中的多数派联系并更新它们的任期，因此，老的 Leader 将在与多数派中的任何一台服务器通信后立即下台。然而，在此期间，它也可以继续充当 Leader，并向尚未被新 Leader 联系到的 Follower 发出请求；此外，客户端可以继续向老的 Leader 发送请求。我们知道，在选举结束后，老的 Leader 不能提交（commit）任何**新的**日志记录，因为这样做需要联系选举多数派中的至少一台服务器。但是，老的 Leader 是否有可能执行一个成功 `AppendEntries RPC`，从而完成在选举开始前收到的旧日志记录的提交？如果可以，请解释这种情况是如何发生的，并讨论这是否会给 Raft 协议带来问题。如果不能发生这种情况，请说明原因。
+
+### 解答
+
+- 有可能，在新的leader选举出来之前，老的leader向多数派append了日志并提交，然后还没有来得及将新的commitIndex发送给follower就断开连接了。但是并不会给Raft协议带来问题，因为多数派当中只有日志最up-to-date的节点才可以被选为新的leader，因此，新leader一定包含这条被提交日志。
+
+## 8
+
+### 问题
+
+- 在配置变更过程中，如果当前 Leader 不在 C-new 中，一旦 C-new 的日志记录被提交，它就会下台。然而，这意味着有一段时间，Leader 不属于它所领导的集群（Leader 上存储的当前配置条目是 C-new，C-new 不包括 Leader）。假设修改协议，如果 C-new 不包含 Leader，则使 Leader 在其日志存储了 C-new 时就立即下台。这种方法可能发生的最坏情况是什么？
+
+### 解答
+
+- 成员变更还没看，挖坑待填
+
 # 其他问题
 
 ## 为什么follower需要随机超时
