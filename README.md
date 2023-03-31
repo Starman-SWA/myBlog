@@ -2,7 +2,7 @@
 
 1. 安装npm和hexo
 
-2. 将next主题clone到themes/next
+2. 将Wikitten主题clone到themes
 
 3. 运行：`npm install --force`
 

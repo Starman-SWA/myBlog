@@ -9,9 +9,7 @@ tags:
 
 Basic Paxos工作流程如下：
 
-<!-- more -->
-
-<img src="basic_paxos.jpg">
+{% asset_img basic_paxos.jpg %}
 
 # 问题记录
 

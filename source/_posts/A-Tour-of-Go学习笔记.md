@@ -9,8 +9,6 @@ tags:
 
 A Tour of Go的中文网页 https://tour.go-zh.org/ 提示隐私错误，无法访问，可安装本地版进行离线学习。
 
-<!-- more -->
-
 1. 安装Go
 
 [Downloads - The Go Programming Language (golang.org)](https://golang.org/dl/)

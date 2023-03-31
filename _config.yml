@@ -15,7 +15,7 @@ timezone: 'Asia/Shanghai'
 ## If your site is put in a subdirectory, set url as 'http://example.com/child' and root as '/child/'
 url: https://starman-swa.github.io/
 root: /
-permalink: :year/:month/:day/:title/
+permalink: wiki/:title/
 permalink_defaults:
 pretty_urls:
   trailing_index: true # Set to false to remove trailing 'index.html' from permalinks
@@ -30,6 +30,8 @@ category_dir: categories
 code_dir: downloads/code
 i18n_dir: :lang
 skip_render:
+  - README.md
+  - '_posts/**/embed_page/**'
 
 # Writing
 new_post_name: :title.md # File name of new posts
@@ -98,7 +100,7 @@ ignore:
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: next
+theme: Wikitten
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
@@ -125,5 +127,36 @@ feed:
     order_by: -date	
 
 auto_excerpt:
+    enable: true
+    lines: 5
+
+# marked:
+#   gfm: true
+marked:
+  prependRoot: true
+  postAsset: true
+
+jsonContent:
+  meta: false
+  pages:
+    title: true
+    date: true
+    path: true
+    text: true
+  posts:
+    title: true
+    date: true
+    path: true
+    text: true
+    tags: true
+    categories: true
+  ignore:
+    - 404.html
+
+sitemap:
+  path: sitemap.xml
+
+nofollow:
   enable: true
-  length: 150
+  exclude:
+    - starman-swa.github.io # eg: zthxxx.me

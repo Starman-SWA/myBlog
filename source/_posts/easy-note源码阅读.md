@@ -10,8 +10,6 @@ tags:
 
 easy_note为一个hertz+kitex+gorm样例项目。
 
-<!-- more -->
-
 - 项目地址：[biz-demo/easy_note at main · cloudwego/biz-demo (github.com)](https://github.com/cloudwego/biz-demo/tree/main/easy_note)
 
 

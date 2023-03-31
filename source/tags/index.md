@@ -1,5 +1,3 @@
----
-title: tags
-type: "tags"
+title: "Tags"
 layout: "tags"
 ---

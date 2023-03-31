@@ -7,8 +7,6 @@ tags:
 
 # Parallel Data Compression With Bzip2（分块压缩）
 
-<!-- more -->
-
 ## 压缩算法的分类
 
 - 字典算法

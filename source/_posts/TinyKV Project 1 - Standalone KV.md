@@ -14,8 +14,6 @@ tags:
 
 Project1需要实现一个单节点、非分布式的K/V存储gRPC服务，本质上是对BadgerDB进行封装，以实现Put/Delete/Get/Scan四种基本操作，以及对Column Family的支持。
 
-<!-- more -->
-
 该Project大致分为两部分：
 
 1. StandAloneStorage类的实现。StandAloneStorage类实现了Storage接口，Storage接口提供了用于操作K/V数据库的Start、Stop、Write、Reader四个方法，对于StandAlone的数据库来说，这四个方法就是对底层的BadgerDB进行读写。

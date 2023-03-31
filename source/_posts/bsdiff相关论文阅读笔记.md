@@ -9,8 +9,6 @@ tags:
 
 - bsdiff/bspatch+Linux rsync
 
-<!-- more -->
-
 ## 基于文件分块的大文件更新策略
 
 ### 解决的问题

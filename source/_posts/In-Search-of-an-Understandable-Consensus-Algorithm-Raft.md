@@ -9,8 +9,6 @@ tags:
 
 Raft是一个用于管理replicated log的共识算法（consensus algorithm）。Raft与Paxos一样高效。相比Paxos，Raft更加易懂，且为应用到实际系统当中提供了更好的基础。为了提高可理解性，Raft将共识算法的几个关键元素分开，例如leader election、log replication和safety，并且它通过执行更强的一致性减少了需要考虑的状态数目。
 
-<!-- more -->
-
 # 引入
 
 共识算法能够让一群机器作为一个团结一致的群体运行，且能够容忍其中部分成员的失效。因此，共识算法在建立可靠的大规模软件系统当中发挥了重要作用。目前，几乎所有的共识算法都是基于Paxos，或受其影响的。但Paxos有两个缺点：
