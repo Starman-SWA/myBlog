@@ -2,8 +2,9 @@
 title: TinyKV Project 1 - Standalone KV
 date: 2021-11-18 15:36:49
 tags: 
-    - 分布式系统
     - Go
+categories:
+- Go
 ---
 
 ## 任务目的

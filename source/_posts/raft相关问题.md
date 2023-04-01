@@ -2,7 +2,9 @@
 title: raft相关问题
 date: 2023-03-29 19:13:47
 tags:
-- 分布式系统
+- Raft
+categories:
+- 分布式
 ---
 
 # Raft的一致性复制过程

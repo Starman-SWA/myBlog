@@ -3,6 +3,8 @@ title: 记一次几乎踩了所有坑的Ubuntu双系统安装
 date: 2021-01-15 01:20:37
 tags: Linux
 copyright: true
+categories:
+- Linux
 ---
 
 

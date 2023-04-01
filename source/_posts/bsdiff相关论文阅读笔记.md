@@ -3,6 +3,8 @@ title: bsdiff相关论文阅读笔记
 date: 2023-03-21 21:57:13
 tags:
 - 差量压缩
+categories:
+- 论文阅读
 ---
 
 # 基于play framework的APP托管平台的设计与实现（北京邮电大学 硕士论文 2018）

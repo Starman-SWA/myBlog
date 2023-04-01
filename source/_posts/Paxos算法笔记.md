@@ -2,7 +2,9 @@
 title: Paxos算法笔记
 date: 2023-01-12 16:02:47
 tags:
-- 分布式系统
+- Paxos
+categories:
+- 分布式
 ---
 
 # Basic Paxos

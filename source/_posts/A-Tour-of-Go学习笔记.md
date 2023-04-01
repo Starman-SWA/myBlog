@@ -3,6 +3,8 @@ title: A Tour of Go学习笔记
 date: 2021-07-29 15:29:10
 tags:
 - Go
+categories:
+- Go
 ---
 
 # 下载A Tour of Go本地中文版

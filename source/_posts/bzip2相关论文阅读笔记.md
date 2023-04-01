@@ -2,7 +2,9 @@
 title: bzip2相关论文阅读笔记
 date: 2023-03-21 22:05:52
 tags:
-- 差量压缩
+- 压缩
+categories:
+- 论文阅读
 ---
 
 # Parallel Data Compression With Bzip2（分块压缩）

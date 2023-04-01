@@ -2,7 +2,9 @@
 title: In Search of an Understandable Consensus Algorithm - Raft
 date: 2021-12-13 15:43:06
 tags:
-    - 分布式系统
+    - Raft
+categories:
+- 分布式
 ---
 
 # 摘要
