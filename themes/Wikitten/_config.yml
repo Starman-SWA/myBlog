@@ -6,7 +6,7 @@ menu:
   归档: /archives
   分类: /categories
   标签: /tags
-  关于: /about
+#   关于: /about
 
 # Customize
 customize:
@@ -63,8 +63,8 @@ history_control: # make you wiki has history version control in page
     enable: true
     server_link: https://github.com # recommend use GitHub https://github.com
     user: starman-swa
-    repertory: Wiki-site
-    branch: writing
+    repertory: myBlog
+    branch: main
 
 # Comment
 comment:
