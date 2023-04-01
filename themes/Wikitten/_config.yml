@@ -6,7 +6,7 @@ menu:
   归档: /archives
   分类: /categories
   标签: /tags
-#   关于: /about
+  关于: /about
 
 # Customize
 customize:
@@ -16,7 +16,7 @@ customize:
         height: 40
         url: /logo.png
     profile:
-        enabled: true # Whether to show profile bar
+        enabled: false # Whether to show profile bar
         avatar: css/images/avatar.png
         # gravatar: zhengchenprc@outlook.com # Gravatar email address, if you enable Gravatar, your avatar config will be overriden
         author: Starman
